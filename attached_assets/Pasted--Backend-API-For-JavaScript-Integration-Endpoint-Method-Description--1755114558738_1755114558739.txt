@@ -1,0 +1,37 @@
+## **Backend API (For JavaScript Integration)**
+
+| Endpoint           | Method | Description                                           |
+| ------------------ | ------ | ----------------------------------------------------- |
+| `/register`        | POST   | Register new user (JSON body: `{username, password}`) |
+| `/login`           | POST   | Log in user (JSON body: `{username, password}`)       |
+| `/connect`         | POST   | Start TCP listener & UDP broadcast                    |
+| `/disconnect`      | POST   | Stop connection, close socket                         |
+| `/active_users`    | GET    | Get list of available users on LAN                    |
+| `/pair/<username>` | POST   | Pair with a selected user                             |
+| `/send`            | POST   | Send one or multiple files (multipart/form-data)      |
+| `/received_files`  | GET    | Get list of received files                            |
+
+**All responses are JSON** and contain at least `{ "status": "success" | "error", "message": "<text>" }` plus additional data if needed.
+
+---
+
+## **UI & Styling**
+
+* Centered content container, **max-width: 900px**, padding all around.
+* Light theme with clean fonts and soft shadows.
+* Navigation bar at top with app name **"BridgeX"** and a logout button.
+* Buttons styled with rounded corners, hover effect, and consistent colors.
+* File send progress bar below send button.
+* Notification area for showing success/error messages.
+
+---
+
+## **Additional Notes**
+
+* **No full-page reloads** — all interactions should be AJAX-based (`fetch()` or `XMLHttpRequest`).
+* Keep styles responsive but **never stretch to full device width** on desktop.
+* Make sure JavaScript handles both success and error states from backend properly.
+* Allow multiple files to be sent in sequence, not all at once.
+* Keep design minimal but modern.
+create a logo as well that aligns with connectivity and security
+and this is meant to be made a desktop application later on
