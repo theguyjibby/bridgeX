@@ -54,3 +54,16 @@ def connect_to_peer(username):
         return {"status": "success", "message": f"Connected to {username}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+def accept_connection(username, target_user):
+    """
+    Accept a connection request from another user
+    """
+    if target_user in active_connections:
+        return {"status": "success", "message": f"Already connected to {target_user}"}
+    
+    # This would typically involve some handshake protocol
+    # For now, we'll just attempt to connect
+    result = connect_to_peer(target_user)
+    return result

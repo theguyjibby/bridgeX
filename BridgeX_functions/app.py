@@ -65,7 +65,20 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    return redirect(url_for('login'))
+    return render_template('home.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
+
+@app.route('/signup')
+def signup_page():
+    return render_template('signup.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
 
 
 
@@ -78,10 +91,10 @@ def signup():
     password = data.get('password')
     
     user = User.query.filter_by(username=username).first()
-    if user or len(username)  <  4:
-        return jsonify({'success' : False , 'message': 'choose another username' }), 
+    if user or len(username) < 4:
+        return jsonify({'success': False, 'message': 'choose another username'}), 400 
     elif len(password) < 6:
-        return jsonify({'success': False , 'message' : 'password should be greater than 5 characters'})
+        return jsonify({'success': False, 'message': 'password should be greater than 5 characters'}), 400
     
 
     hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
@@ -181,6 +194,6 @@ def send_files_route():
 
 
 if __name__== "__main__":
-    app.run(debug=True)
     with app.app_context():
         db.create_all()
+    app.run(host='0.0.0.0', port=5000, debug=True)

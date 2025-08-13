@@ -6,7 +6,7 @@ from Crypto.Util.Padding import unpad
 from flask import jsonify
 from shared import active_connections
 
-from app import db, ReceivedFile
+# Import will be handled at runtime to avoid circular imports
 
 SHARED_SECRET = "supersecurepassword"
 SALT = b'some_random_salt'
@@ -78,12 +78,15 @@ def receive_file(sock):
                 f.write(decrypted_data)
 
             # Save metadata to database
-            file_record = ReceivedFile(filename=filename,
-                                       filesize=filesize,
-                                       filepath=full_path,
-                                       sender_ip=peer_ip)
-            db.session.add(file_record)
-            db.session.commit()
+            from flask import current_app
+            with current_app.app_context():
+                from app import db, ReceivedFile
+                file_record = ReceivedFile(filename=filename,
+                                           filesize=filesize,
+                                           filepath=full_path,
+                                           sender_ip=peer_ip)
+                db.session.add(file_record)
+                db.session.commit()
 
             print(f"[RECEIVE] File saved as: {full_path}")
 
