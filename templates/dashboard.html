@@ -49,8 +49,10 @@
                     <h3>📁 Send Files</h3>
                     <div class="file-sharing">
                         <div class="form-group">
-                            <label for="targetUser">Send to User</label>
-                            <input type="text" id="targetUser" placeholder="Enter username">
+                            <label for="targetUserSelect">Send to User</label>
+                            <select id="targetUserSelect" class="form-select">
+                                <option value="">Select a user...</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="fileInput">Select Files</label>
@@ -131,11 +133,17 @@
                 const data = await response.json();
                 
                 const usersList = document.getElementById('activeUsersList');
+                const targetUserSelect = document.getElementById('targetUserSelect');
+                
                 usersList.innerHTML = '';
+                
+                // Clear and repopulate dropdown
+                targetUserSelect.innerHTML = '<option value="">Select a user...</option>';
 
                 if (data.active_users && data.active_users.length > 0) {
                     data.active_users.forEach(user => {
                         if (user !== currentUsername) {
+                            // Add to active users display
                             const userCard = document.createElement('div');
                             userCard.className = 'user-card';
                             userCard.innerHTML = `
@@ -143,6 +151,12 @@
                                 <button class="btn btn-small btn-primary" onclick="connectToUser('${user}')">Connect</button>
                             `;
                             usersList.appendChild(userCard);
+                            
+                            // Add to dropdown for file sending
+                            const option = document.createElement('option');
+                            option.value = user;
+                            option.textContent = user;
+                            targetUserSelect.appendChild(option);
                         }
                     });
                 } else {
@@ -187,11 +201,12 @@
         }
 
         async function sendFiles() {
-            const targetUser = document.getElementById('targetUser').value;
+            const targetUserSelect = document.getElementById('targetUserSelect');
+            const targetUser = targetUserSelect.value;
             const fileInput = document.getElementById('fileInput');
             
             if (!targetUser) {
-                alert('Please enter a target username');
+                alert('Please select a user from the dropdown');
                 return;
             }
 
@@ -233,7 +248,7 @@
             }
 
             // Clear form
-            document.getElementById('targetUser').value = '';
+            targetUserSelect.value = '';
             fileInput.value = '';
         }
 
