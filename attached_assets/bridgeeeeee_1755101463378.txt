@@ -1,0 +1,95 @@
+
+
+**Project Name:** BridgeX 
+A Peer-to-Peer Secure File Transfer (LAN-Only)
+
+**Overview:**
+BridgeX is a secure file transfer desktop web app designed for devices connected to the same **local network (LAN)**.
+The backend (already implemented in Python + Flask) handles authentication, TCP socket connections, UDP broadcasts for discovery, AES encryption for file transfer, and storing active sockets for reuse.
+
+This frontend should be built **purely in HTML, CSS, and JavaScript** (no frameworks), fully integrated with the backend’s REST API.
+The layout should be **centered** with a fixed maximum width so it does **not** cover the entire screen on desktop.
+It must be responsive for smaller devices.
+
+---
+
+## **Frontend Requirements**
+
+### 1. **Login & Registration Page**
+
+* **Fields:** Username, Password.
+* **Buttons:** "Log In", "Register".
+* Uses:
+
+  * `POST /login` ? `{ username, password }`
+  * `POST /register` ? `{ username, password }`
+* Display backend response messages (success/error) without page reload.
+* After login, redirect to dashboard.
+
+---
+
+### 2. **Dashboard (Main Page)**
+
+#### **Connection Controls**
+
+* **Connect button:** Calls `POST /connect` to start TCP listener and UDP broadcasting.
+
+  * Changes to **Disconnect** when connected (calls `POST /disconnect`).
+* **Accept button:** Calls `GET /active_users` to list available users on LAN.
+
+  * Show dropdown or list of usernames.
+  * Each username has a **Pair** button ? calls `POST /pair/<username>` to connect.
+
+#### **File Sending**
+
+* Section with:
+
+  * File picker (allow multiple file selection).
+  * **Send** button ? sends files sequentially to the paired device via `POST /send` (multipart/form-data).
+  * Progress indicator and status updates.
+
+#### **Received Files**
+
+* Section showing a list/table of received files (from `GET /received_files`).
+
+  * Each row: filename, size, sender, download link.
+  * Update in real time or via refresh button.
+
+---
+
+## **Backend API (For JavaScript Integration)**
+
+| Endpoint           | Method | Description                                           |
+| ------------------ | ------ | ----------------------------------------------------- |
+| `/register`        | POST   | Register new user (JSON body: `{username, password}`) |
+| `/login`           | POST   | Log in user (JSON body: `{username, password}`)       |
+| `/connect`         | POST   | Start TCP listener & UDP broadcast                    |
+| `/disconnect`      | POST   | Stop connection, close socket                         |
+| `/active_users`    | GET    | Get list of available users on LAN                    |
+| `/pair/<username>` | POST   | Pair with a selected user                             |
+| `/send`            | POST   | Send one or multiple files (multipart/form-data)      |
+| `/received_files`  | GET    | Get list of received files                            |
+
+**All responses are JSON** and contain at least `{ "status": "success" | "error", "message": "<text>" }` plus additional data if needed.
+
+---
+
+## **UI & Styling**
+
+* Centered content container, **max-width: 900px**, padding all around.
+* Light theme with clean fonts and soft shadows.
+* Navigation bar at top with app name **"BridgeX"** and a logout button.
+* Buttons styled with rounded corners, hover effect, and consistent colors.
+* File send progress bar below send button.
+* Notification area for showing success/error messages.
+
+---
+
+## **Additional Notes**
+
+* **No full-page reloads** — all interactions should be AJAX-based (`fetch()` or `XMLHttpRequest`).
+* Keep styles responsive but **never stretch to full device width** on desktop.
+* Make sure JavaScript handles both success and error states from backend properly.
+* Allow multiple files to be sent in sequence, not all at once.
+* Keep design minimal but modern.
+create a logo as well that aligns with connectivity and security
