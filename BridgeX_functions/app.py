@@ -139,14 +139,15 @@ def logout():
 
 
 @app.route("/accept", methods=["POST"])
+@login_required
 def accept():
     data = request.json
-    username = data.get("username")       
     target_user = data.get("target_user") 
 
-    if not username or not target_user:
-        return jsonify({"status": "error", "message": "username and target_user required"}), 400
+    if not target_user:
+        return jsonify({"status": "error", "message": "target_user required"}), 400
 
+    username = current_user.username
     try:
         accept_connection(username, target_user)
         return jsonify({"status": "success", "message": f"Paired with {target_user}"})
@@ -161,13 +162,18 @@ def active_users():
 
 
 
+@app.route('/current-user', methods=['GET'])
+@login_required
+def get_current_user():
+    return jsonify({
+        'username': current_user.username,
+        'id': current_user.id
+    })
+
 @app.route('/connect', methods=['POST'])
+@login_required
 def connect_route():
-    data = request.get_json()
-    if not data or 'username' not in data:
-        return jsonify({'success': False, 'message': 'Username required'}), 400
-    
-    username = data['username']
+    username = current_user.username
     response, status = connect(username)
     return jsonify(response), status
     
@@ -186,6 +192,8 @@ def send_files_route():
     if not target or not files:
         return jsonify({"success": False, "message": "target_username and file_paths required"}), 400
 
+    # Use current logged-in user's username
+    current_username = current_user.username
     result = send_files(target, files)
     return jsonify(result), (200 if result["success"] else 500)
     
@@ -196,4 +204,4 @@ def send_files_route():
 if __name__== "__main__":
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
