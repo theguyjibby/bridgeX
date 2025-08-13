@@ -6,30 +6,35 @@ from Crypto.Util.Padding import unpad
 from flask import jsonify
 from shared import active_connections
 
-from BridgeX_functions.app import db, ReceivedFile  
+from app import db, ReceivedFile
 
 SHARED_SECRET = "supersecurepassword"
 SALT = b'some_random_salt'
+
 
 def derive_key_and_iv(password, salt, key_len=32, iv_len=16):
     dkey = PBKDF2(password, salt, dkLen=key_len + iv_len, count=100_000)
     return dkey[:key_len], dkey[key_len:]
 
+
 def receive_file(sock):
     try:
         peer_ip = sock.getpeername()[0]
 
-        while True:  
+        while True:
             header = sock.recv(1024)
             if not header:
-                break  
+                break
 
             try:
                 file_info = json.loads(header.decode())
                 filename = file_info["filename"]
                 filesize = file_info["filesize"]
             except (json.JSONDecodeError, UnicodeDecodeError):
-                return jsonify({'success': False, 'message': 'Invalid file header received.'}), 400
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid file header received.'
+                }), 400
 
             # Create save directory
             save_dir = os.path.expanduser("~/Documents/BridgeX/Received")
@@ -59,26 +64,36 @@ def receive_file(sock):
 
             # Decrypt and save file
             try:
-                decrypted_data = unpad(cipher.decrypt(encrypted_data), AES.block_size)
+                decrypted_data = unpad(cipher.decrypt(encrypted_data),
+                                       AES.block_size)
             except ValueError:
-                return jsonify({'success': False, 'message': 'Decryption failed or incorrect padding.'}), 400
+                return jsonify({
+                    'success':
+                    False,
+                    'message':
+                    'Decryption failed or incorrect padding.'
+                }), 400
 
             with open(full_path, "wb") as f:
                 f.write(decrypted_data)
 
             # Save metadata to database
-            file_record = ReceivedFile(
-                filename=filename,
-                filesize=filesize,
-                filepath=full_path,
-                sender_ip=peer_ip
-            )
+            file_record = ReceivedFile(filename=filename,
+                                       filesize=filesize,
+                                       filepath=full_path,
+                                       sender_ip=peer_ip)
             db.session.add(file_record)
             db.session.commit()
 
             print(f"[RECEIVE] File saved as: {full_path}")
 
-        return jsonify({'success': True, 'message': 'All files received successfully.'}), 200
+        return jsonify({
+            'success': True,
+            'message': 'All files received successfully.'
+        }), 200
 
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Unexpected error receiving file: {str(e)}'}), 500
+        return jsonify({
+            'success': False,
+            'message': f'Unexpected error receiving file: {str(e)}'
+        }), 500
