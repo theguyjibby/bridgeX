@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BridgeX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>BridgeX Dashboard</h1>
+                <p>Welcome, <span id="currentUser">{{ current_user.username if current_user.is_authenticated else 'User' }}</span></p>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <div class="dashboard-grid">
+                <!-- Connection Panel -->
+                <section class="panel">
+                    <h3>🌐 Connection</h3>
+                    <div class="connection-controls">
+                        <div class="form-group">
+                            <label for="myUsername">Your Username</label>
+                            <input type="text" id="myUsername" readonly>
+                        </div>
+                        <button class="btn btn-primary" onclick="startConnection()">Start Broadcasting</button>
+                        <div id="connectionStatus" class="status-indicator"></div>
+                    </div>
+                </section>
+
+                <!-- Active Users Panel -->
+                <section class="panel">
+                    <h3>👥 Active Users</h3>
+                    <div class="users-list">
+                        <button class="btn btn-secondary btn-small" onclick="refreshUsers()">Refresh</button>
+                        <div id="activeUsersList" class="users-grid"></div>
+                    </div>
+                </section>
+
+                <!-- File Sharing Panel -->
+                <section class="panel">
+                    <h3>📁 Send Files</h3>
+                    <div class="file-sharing">
+                        <div class="form-group">
+                            <label for="targetUser">Send to User</label>
+                            <input type="text" id="targetUser" placeholder="Enter username">
+                        </div>
+                        <div class="form-group">
+                            <label for="fileInput">Select Files</label>
+                            <input type="file" id="fileInput" multiple>
+                        </div>
+                        <button class="btn btn-primary" onclick="sendFiles()">Send Files</button>
+                        <div id="sendStatus"></div>
+                    </div>
+                </section>
+
+                <!-- Connection History Panel -->
+                <section class="panel">
+                    <h3>🔗 Connected Users</h3>
+                    <div id="connectedUsersList" class="connected-users"></div>
+                    <div class="connect-controls">
+                        <div class="form-group">
+                            <label for="connectUsername">Connect to User</label>
+                            <input type="text" id="connectUsername" placeholder="Enter username">
+                        </div>
+                        <button class="btn btn-primary" onclick="connectToUser()">Connect</button>
+                    </div>
+                </section>
+
+                <!-- File Transfer Status -->
+                <section class="panel full-width">
+                    <h3>📊 Transfer Status</h3>
+                    <div id="transferLog" class="transfer-log"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let isConnected = false;
+        let currentUsername = '';
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            currentUsername = '{{ current_user.username if current_user.is_authenticated else "" }}';
+            document.getElementById('myUsername').value = currentUsername;
+            refreshUsers();
+            setInterval(refreshUsers, 5000); // Refresh every 5 seconds
+        });
+
+        async function startConnection() {
+            if (isConnected) {
+                updateConnectionStatus('Already connected', 'success');
+                return;
+            }
+
+            try {
+                const response = await fetch('/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: currentUsername
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    isConnected = true;
+                    updateConnectionStatus('Broadcasting started', 'success');
+                } else {
+                    updateConnectionStatus(data.message || 'Connection failed', 'error');
+                }
+            } catch (error) {
+                updateConnectionStatus('Network error', 'error');
+            }
+        }
+
+        async function refreshUsers() {
+            try {
+                const response = await fetch('/active_users');
+                const data = await response.json();
+                
+                const usersList = document.getElementById('activeUsersList');
+                usersList.innerHTML = '';
+
+                if (data.active_users && data.active_users.length > 0) {
+                    data.active_users.forEach(user => {
+                        if (user !== currentUsername) {
+                            const userCard = document.createElement('div');
+                            userCard.className = 'user-card';
+                            userCard.innerHTML = `
+                                <span class="user-name">${user}</span>
+                                <button class="btn btn-small btn-primary" onclick="connectToUser('${user}')">Connect</button>
+                            `;
+                            usersList.appendChild(userCard);
+                        }
+                    });
+                } else {
+                    usersList.innerHTML = '<p class="no-users">No active users found</p>';
+                }
+            } catch (error) {
+                console.error('Error refreshing users:', error);
+            }
+        }
+
+        async function connectToUser(username = null) {
+            const targetUsername = username || document.getElementById('connectUsername').value;
+            
+            if (!targetUsername) {
+                alert('Please enter a username');
+                return;
+            }
+
+            try {
+                const response = await fetch('/accept', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: currentUsername,
+                        target_user: targetUsername
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    addToTransferLog(`✅ Connected to ${targetUsername}`, 'success');
+                    updateConnectedUsers();
+                } else {
+                    addToTransferLog(`❌ Failed to connect to ${targetUsername}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addToTransferLog(`❌ Network error connecting to ${targetUsername}`, 'error');
+            }
+        }
+
+        async function sendFiles() {
+            const targetUser = document.getElementById('targetUser').value;
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!targetUser) {
+                alert('Please enter a target username');
+                return;
+            }
+
+            if (!fileInput.files.length) {
+                alert('Please select files to send');
+                return;
+            }
+
+            // In a real implementation, you'd upload files to server first
+            // For this demo, we'll simulate with file paths
+            const filePaths = Array.from(fileInput.files).map(file => file.name);
+
+            try {
+                const response = await fetch('/send-files', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        target_username: targetUser,
+                        file_paths: filePaths
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addToTransferLog(`📤 Files sent to ${targetUser}`, 'success');
+                    if (data.details) {
+                        data.details.forEach(detail => {
+                            addToTransferLog(`  ${detail.file}: ${detail.success ? '✅' : '❌'} ${detail.message}`, detail.success ? 'success' : 'error');
+                        });
+                    }
+                } else {
+                    addToTransferLog(`❌ Failed to send files to ${targetUser}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addToTransferLog(`❌ Network error sending files`, 'error');
+            }
+
+            // Clear form
+            document.getElementById('targetUser').value = '';
+            fileInput.value = '';
+        }
+
+        function updateConnectionStatus(message, type) {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-indicator ${type}`;
+        }
+
+        function updateConnectedUsers() {
+            // This would typically fetch from an endpoint
+            // For now, we'll just update the display
+            const connectedDiv = document.getElementById('connectedUsersList');
+            connectedDiv.innerHTML = '<p>Connected users will appear here</p>';
+        }
+
+        function addToTransferLog(message, type) {
+            const logDiv = document.getElementById('transferLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/logout');
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/';
+            }
+        }
+    </script>
+</body>
+</html>

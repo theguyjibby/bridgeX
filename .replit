@@ -2,3 +2,15 @@ modules = ["python-3.12"]
 
 [nix]
 channel = "stable-25_05"
+
+[workflows]
+runButton = "Run BridgeX"
+
+[[workflows.workflow]]
+name = "Run BridgeX"
+author = 45072445
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd BridgeX_functions && python app.py"

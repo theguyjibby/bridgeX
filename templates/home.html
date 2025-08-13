@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BridgeX - Secure File Sharing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>BridgeX</h1>
+                <p>Secure Peer-to-Peer File Sharing</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="hero">
+                <h2>Share Files Securely</h2>
+                <p>Connect directly with other users and share files with end-to-end encryption</p>
+                
+                <div class="auth-buttons">
+                    <button class="btn btn-primary" onclick="showLogin()">Login</button>
+                    <button class="btn btn-secondary" onclick="showSignup()">Sign Up</button>
+                </div>
+            </section>
+
+            <section class="features">
+                <div class="feature-card">
+                    <h3>🔒 Secure</h3>
+                    <p>End-to-end encryption for all file transfers</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🚀 Fast</h3>
+                    <p>Direct peer-to-peer connections</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌐 Easy</h3>
+                    <p>Simple interface for seamless sharing</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function showLogin() {
+            window.location.href = '/login';
+        }
+
+        function showSignup() {
+            window.location.href = '/signup';
+        }
+    </script>
+</body>
+</html>
