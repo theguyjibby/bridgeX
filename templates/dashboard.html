@@ -11,7 +11,8 @@
     <div class="container">
         <header class="dashboard-header">
             <div class="header-left">
-                <h1>BridgeX Dashboard</h1>
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="BridgeX Logo" style="width: 40px; height: 40px; margin-right: 1rem; display: inline-block; vertical-align: middle;">
+                <h1 style="display: inline-block; vertical-align: middle;">BridgeX Dashboard</h1>
                 <p>Welcome, <span id="currentUser">{{ current_user.username if current_user.is_authenticated else 'User' }}</span></p>
             </div>
             <div class="header-right">

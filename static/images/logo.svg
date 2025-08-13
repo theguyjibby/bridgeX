@@ -1,0 +1,25 @@
+
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="58" fill="#667eea" stroke="#764ba2" stroke-width="2"/>
+  
+  <!-- Bridge/Connection lines -->
+  <path d="M20 45 Q40 25 60 45 Q80 25 100 45" stroke="white" stroke-width="3" fill="none"/>
+  <path d="M20 60 L100 60" stroke="white" stroke-width="4"/>
+  <path d="M20 75 Q40 95 60 75 Q80 95 100 75" stroke="white" stroke-width="3" fill="none"/>
+  
+  <!-- Security nodes -->
+  <circle cx="20" cy="60" r="8" fill="white"/>
+  <circle cx="60" cy="60" r="10" fill="white"/>
+  <circle cx="100" cy="60" r="8" fill="white"/>
+  
+  <!-- Lock symbol in center -->
+  <rect x="55" y="56" width="10" height="8" rx="1" fill="#667eea"/>
+  <path d="M57 56 C57 53 59 51 61 51 C63 51 65 53 65 56" stroke="#667eea" stroke-width="1.5" fill="none"/>
+  
+  <!-- Data flow indicators -->
+  <circle cx="35" cy="45" r="2" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="85" cy="45" r="2" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="35" cy="75" r="2" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="85" cy="75" r="2" fill="rgba(255,255,255,0.8)"/>
+</svg>
