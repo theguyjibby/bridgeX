@@ -115,13 +115,13 @@ def login():
         return jsonify({'success' : False, 'message' : 'missing json'}), 400
     
     username = data.get('username')
-    password= data.get('password')
+    password = data.get('password')
+    remember_me = data.get('remember_me', False)
     
     user = User.query.filter_by(username=username).first()
     
     if user and check_password_hash(user.password, password):
-
-        login_user(user)
+        login_user(user, remember=remember_me)
         return jsonify({'success': True})
     
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
@@ -177,6 +177,24 @@ def connect_route():
     username = current_user.username
     response, status = connect(username)
     return jsonify(response), status
+
+@app.route('/disconnect', methods=['POST'])
+@login_required
+def disconnect_route():
+    username = current_user.username
+    try:
+        # Close any active connections for this user
+        if username in active_connections:
+            for connection in active_connections[username]:
+                try:
+                    connection.close()
+                except:
+                    pass
+            del active_connections[username]
+        
+        return jsonify({"success": True, "message": "Disconnected successfully"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
     
 
 
@@ -225,6 +243,45 @@ def send_files_route():
     current_username = current_user.username
     result = send_files(target, files)
     return jsonify(result), (200 if result["success"] else 500)
+
+@app.route('/received-files', methods=['GET'])
+@login_required
+def get_received_files():
+    try:
+        files = ReceivedFile.query.order_by(ReceivedFile.timestamp.desc()).limit(50).all()
+        files_data = []
+        for file in files:
+            files_data.append({
+                'filename': file.filename,
+                'filesize': file.filesize,
+                'sender_ip': file.sender_ip,
+                'timestamp': file.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'filepath': file.filepath
+            })
+        return jsonify({'success': True, 'files': files_data})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/update-username', methods=['POST'])
+@login_required
+def update_username():
+    data = request.get_json()
+    new_username = data.get('username')
+    
+    if not new_username or len(new_username) < 4:
+        return jsonify({'success': False, 'message': 'Username must be at least 4 characters'}), 400
+    
+    existing_user = User.query.filter_by(username=new_username).first()
+    if existing_user and existing_user.id != current_user.id:
+        return jsonify({'success': False, 'message': 'Username already taken'}), 400
+    
+    try:
+        current_user.username = new_username
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Username updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
     
 
 

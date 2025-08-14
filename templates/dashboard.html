@@ -6,16 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - BridgeX</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header class="dashboard-header">
             <div class="header-left">
-                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="BridgeX Logo" style="width: 40px; height: 40px; margin-right: 1rem; display: inline-block; vertical-align: middle;">
-                <h1 style="display: inline-block; vertical-align: middle;">BridgeX Dashboard</h1>
-                <p>Welcome, <span id="currentUser">{{ current_user.username if current_user.is_authenticated else 'User' }}</span></p>
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="BridgeX Logo" style="width: 50px; height: 50px;">
+                <div>
+                    <h1>BridgeX</h1>
+                    <div class="user-info">
+                        <span class="username-display" id="currentUser">{{ current_user.username if current_user.is_authenticated else 'User' }}</span>
+                        <span class="status-badge disconnected" id="connectionBadge">Disconnected</span>
+                    </div>
+                </div>
             </div>
             <div class="header-right">
+                <button class="btn btn-secondary btn-small" onclick="openSettings()">⚙️ Settings</button>
                 <button class="btn btn-secondary" onclick="logout()">Logout</button>
             </div>
         </header>
@@ -23,272 +30,567 @@
         <main class="dashboard-main">
             <div class="dashboard-grid">
                 <!-- Connection Panel -->
-                <section class="panel">
-                    <h3>🌐 Connection</h3>
-                    <div class="connection-controls">
-                        <div class="form-group">
-                            <label for="myUsername">Your Username</label>
-                            <input type="text" id="myUsername" readonly>
-                        </div>
-                        <button class="btn btn-primary" onclick="startConnection()">Start Broadcasting</button>
-                        <div id="connectionStatus" class="status-indicator"></div>
+                <section class="panel connection-panel">
+                    <h3>🌐 Network Connection</h3>
+                    <div class="connection-status disconnected" id="connectionStatus">
+                        Ready to connect
                     </div>
+                    <button class="btn btn-primary btn-large btn-full" id="connectBtn" onclick="toggleConnection()">
+                        Connect to Network
+                    </button>
                 </section>
 
-                <!-- Active Users Panel -->
+                <!-- Available Peers Panel -->
                 <section class="panel">
-                    <h3>👥 Active Users</h3>
-                    <div class="users-list">
-                        <button class="btn btn-secondary btn-small" onclick="refreshUsers()">Refresh</button>
-                        <div id="activeUsersList" class="users-grid"></div>
+                    <h3>👥 Available Peers</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <span style="color: #94a3b8; font-size: 0.875rem;" id="peersCount">0 peers online</span>
+                        <button class="btn btn-secondary btn-small" onclick="refreshPeers()">🔄 Refresh</button>
+                    </div>
+                    <div class="peers-list" id="peersList">
+                        <div class="no-peers">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                            <p>No peers found</p>
+                            <p style="font-size: 0.75rem; margin-top: 0.5rem;">Click "Connect to Network" to start discovering peers</p>
+                        </div>
                     </div>
                 </section>
 
                 <!-- File Sharing Panel -->
                 <section class="panel">
                     <h3>📁 Send Files</h3>
-                    <div class="file-sharing">
-                        <div class="form-group">
-                            <label for="targetUserSelect">Send to User</label>
-                            <select id="targetUserSelect" class="form-select">
-                                <option value="">Select a user...</option>
-                            </select>
+                    <div class="file-drop-zone" id="fileDropZone" onclick="document.getElementById('fileInput').click()">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📁</div>
+                        <p><strong>Click to select files</strong></p>
+                        <p style="font-size: 0.875rem; color: #64748b; margin-top: 0.5rem;">or drag and drop files here</p>
+                        <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelection(this)">
+                    </div>
+                    <div id="selectedFiles" class="selected-files hidden">
+                        <h4 style="margin-bottom: 0.5rem; color: #e2e8f0;">Selected Files:</h4>
+                        <div id="filesList"></div>
+                    </div>
+                    <button class="btn btn-success btn-full" id="sendBtn" onclick="sendFiles()" disabled>
+                        📤 Send Files
+                    </button>
+                    <div id="transferProgress" class="transfer-progress hidden">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
                         </div>
-                        <div class="form-group">
-                            <label for="fileInput">Select Files</label>
-                            <input type="file" id="fileInput" multiple>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: #94a3b8;">
+                            <span id="progressText">Preparing...</span>
+                            <span id="progressPercent">0%</span>
                         </div>
-                        <button class="btn btn-primary" onclick="sendFiles()">Send Files</button>
-                        <div id="sendStatus"></div>
                     </div>
                 </section>
 
-                <!-- Connection History Panel -->
+                <!-- History Panel -->
                 <section class="panel">
-                    <h3>🔗 Connected Users</h3>
-                    <div id="connectedUsersList" class="connected-users"></div>
-                    <div class="connect-controls">
-                        <div class="form-group">
-                            <label for="connectUsername">Connect to User</label>
-                            <input type="text" id="connectUsername" placeholder="Enter username">
+                    <h3>📋 Received Files History</h3>
+                    <div class="history-dropdown">
+                        <button class="btn btn-secondary btn-full history-toggle" onclick="toggleHistory()">
+                            <span>View History</span>
+                            <span id="historyArrow">▼</span>
+                        </button>
+                        <div class="history-content hidden" id="historyContent">
+                            <div id="historyList">
+                                <div style="padding: 2rem; text-align: center; color: #64748b;">
+                                    Loading history...
+                                </div>
+                            </div>
                         </div>
-                        <button class="btn btn-primary" onclick="connectToUser()">Connect</button>
                     </div>
                 </section>
 
-                <!-- File Transfer Status -->
+                <!-- Transfer Log -->
                 <section class="panel full-width">
-                    <h3>📊 Transfer Status</h3>
-                    <div id="transferLog" class="transfer-log"></div>
+                    <h3>📊 Activity Log</h3>
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 1rem; max-height: 200px; overflow-y: auto; font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.875rem;" id="activityLog">
+                        <div style="color: #64748b; text-align: center; padding: 2rem;">
+                            Activity will appear here...
+                        </div>
+                    </div>
                 </section>
             </div>
         </main>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">⚙️ Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newUsername">Username</label>
+                    <input type="text" id="newUsername" placeholder="Enter new username">
+                </div>
+                <div class="form-group">
+                    <label>Connection Settings</label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                        <input type="checkbox" id="autoConnect" class="checkbox">
+                        <label for="autoConnect" style="font-weight: normal;">Auto-connect on startup</label>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+                    <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let isConnected = false;
         let currentUsername = '';
+        let selectedFiles = [];
+        let connectedPeers = [];
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
             currentUsername = '{{ current_user.username if current_user.is_authenticated else "" }}';
-            document.getElementById('myUsername').value = currentUsername;
-            refreshUsers();
-            setInterval(refreshUsers, 5000); // Refresh every 5 seconds
+            document.getElementById('currentUser').textContent = currentUsername;
+            document.getElementById('newUsername').value = currentUsername;
+            
+            // Set up drag and drop
+            setupDragAndDrop();
+            
+            // Initial data load
+            refreshPeers();
+            loadHistory();
+            
+            // Auto refresh peers every 10 seconds
+            setInterval(refreshPeers, 10000);
+            
+            logActivity('Dashboard loaded', 'info');
         });
 
-        async function startConnection() {
-            if (isConnected) {
-                updateConnectionStatus('Already connected', 'success');
-                return;
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('fileDropZone');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+            });
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
 
-            try {
-                const response = await fetch('/connect', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: currentUsername
-                    })
-                });
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            document.getElementById('fileInput').files = files;
+            handleFileSelection(document.getElementById('fileInput'));
+        }
 
-                const data = await response.json();
+        function handleFileSelection(input) {
+            selectedFiles = Array.from(input.files);
+            const dropZone = document.getElementById('fileDropZone');
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+            const filesList = document.getElementById('filesList');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (selectedFiles.length > 0) {
+                dropZone.classList.add('has-files');
+                selectedFilesDiv.classList.remove('hidden');
                 
-                if (data.success) {
-                    isConnected = true;
-                    updateConnectionStatus('Broadcasting started', 'success');
-                } else {
-                    updateConnectionStatus(data.message || 'Connection failed', 'error');
-                }
-            } catch (error) {
-                updateConnectionStatus('Network error', 'error');
+                filesList.innerHTML = '';
+                selectedFiles.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>${file.name} (${formatFileSize(file.size)})</span>
+                        <button class="btn btn-danger btn-small" onclick="removeFile(${index})">×</button>
+                    `;
+                    filesList.appendChild(fileItem);
+                });
+                
+                sendBtn.disabled = connectedPeers.length === 0;
+                sendBtn.textContent = `📤 Send ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
+            } else {
+                dropZone.classList.remove('has-files');
+                selectedFilesDiv.classList.add('hidden');
+                sendBtn.disabled = true;
+                sendBtn.textContent = '📤 Send Files';
             }
         }
 
-        async function refreshUsers() {
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            // Update file input
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => dt.items.add(file));
+            document.getElementById('fileInput').files = dt.files;
+            handleFileSelection(document.getElementById('fileInput'));
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function toggleConnection() {
+            const connectBtn = document.getElementById('connectBtn');
+            const connectionStatus = document.getElementById('connectionStatus');
+            const connectionBadge = document.getElementById('connectionBadge');
+            
+            if (isConnected) {
+                // Disconnect
+                try {
+                    const response = await fetch('/disconnect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        isConnected = false;
+                        connectBtn.textContent = 'Connect to Network';
+                        connectBtn.className = 'btn btn-primary btn-large btn-full';
+                        connectionStatus.textContent = 'Disconnected';
+                        connectionStatus.className = 'connection-status disconnected';
+                        connectionBadge.textContent = 'Disconnected';
+                        connectionBadge.className = 'status-badge disconnected';
+                        logActivity('Disconnected from network', 'info');
+                    } else {
+                        logActivity('Failed to disconnect: ' + data.message, 'error');
+                    }
+                } catch (error) {
+                    logActivity('Network error during disconnect', 'error');
+                }
+            } else {
+                // Connect
+                try {
+                    const response = await fetch('/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: currentUsername })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        isConnected = true;
+                        connectBtn.textContent = 'Disconnect';
+                        connectBtn.className = 'btn btn-danger btn-large btn-full';
+                        connectionStatus.textContent = 'Connected and broadcasting';
+                        connectionStatus.className = 'connection-status connected';
+                        connectionBadge.textContent = 'Connected';
+                        connectionBadge.className = 'status-badge connected';
+                        logActivity('Connected to network successfully', 'success');
+                        refreshPeers();
+                    } else {
+                        logActivity('Failed to connect: ' + data.message, 'error');
+                    }
+                } catch (error) {
+                    logActivity('Network error during connection', 'error');
+                }
+            }
+        }
+
+        async function refreshPeers() {
             try {
                 const response = await fetch('/active_users');
                 const data = await response.json();
                 
-                const usersList = document.getElementById('activeUsersList');
-                const targetUserSelect = document.getElementById('targetUserSelect');
+                const peersList = document.getElementById('peersList');
+                const peersCount = document.getElementById('peersCount');
                 
-                usersList.innerHTML = '';
+                const otherUsers = data.active_users ? data.active_users.filter(user => user !== currentUsername) : [];
                 
-                // Clear and repopulate dropdown
-                targetUserSelect.innerHTML = '<option value="">Select a user...</option>';
-
-                if (data.active_users && data.active_users.length > 0) {
-                    data.active_users.forEach(user => {
-                        if (user !== currentUsername) {
-                            // Add to active users display
-                            const userCard = document.createElement('div');
-                            userCard.className = 'user-card';
-                            userCard.innerHTML = `
-                                <span class="user-name">${user}</span>
-                                <button class="btn btn-small btn-primary" onclick="connectToUser('${user}')">Connect</button>
-                            `;
-                            usersList.appendChild(userCard);
-                            
-                            // Add to dropdown for file sending
-                            const option = document.createElement('option');
-                            option.value = user;
-                            option.textContent = user;
-                            targetUserSelect.appendChild(option);
-                        }
+                if (otherUsers.length > 0) {
+                    peersList.innerHTML = '';
+                    connectedPeers = otherUsers;
+                    
+                    otherUsers.forEach(user => {
+                        const peerCard = document.createElement('div');
+                        peerCard.className = 'peer-card fade-in';
+                        peerCard.innerHTML = `
+                            <div class="peer-info">
+                                <div class="peer-avatar">${user[0].toUpperCase()}</div>
+                                <div>
+                                    <div class="peer-name">${user}</div>
+                                    <div class="peer-status">Online</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary btn-small" onclick="pairWithUser('${user}')">
+                                🔗 Pair
+                            </button>
+                        `;
+                        peersList.appendChild(peerCard);
                     });
                 } else {
-                    usersList.innerHTML = '<p class="no-users">No active users found</p>';
+                    connectedPeers = [];
+                    peersList.innerHTML = `
+                        <div class="no-peers">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">${isConnected ? '🔍' : '🌐'}</div>
+                            <p>${isConnected ? 'No peers found' : 'Not connected'}</p>
+                            <p style="font-size: 0.75rem; margin-top: 0.5rem;">
+                                ${isConnected ? 'Peers will appear here when they come online' : 'Click "Connect to Network" to start discovering peers'}
+                            </p>
+                        </div>
+                    `;
                 }
+                
+                peersCount.textContent = `${otherUsers.length} peer${otherUsers.length !== 1 ? 's' : ''} online`;
+                
+                // Update send button state
+                const sendBtn = document.getElementById('sendBtn');
+                if (selectedFiles.length > 0) {
+                    sendBtn.disabled = connectedPeers.length === 0;
+                }
+                
             } catch (error) {
-                console.error('Error refreshing users:', error);
+                logActivity('Error refreshing peers', 'error');
             }
         }
 
-        async function connectToUser(username = null) {
-            const targetUsername = username || document.getElementById('connectUsername').value;
-            
-            if (!targetUsername) {
-                alert('Please enter a username');
-                return;
-            }
-
+        async function pairWithUser(username) {
             try {
                 const response = await fetch('/accept', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: currentUsername,
-                        target_user: targetUsername
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target_user: username })
                 });
-
+                
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    addToTransferLog(`✅ Connected to ${targetUsername}`, 'success');
-                    updateConnectedUsers();
+                    logActivity(`Successfully paired with ${username}`, 'success');
                 } else {
-                    addToTransferLog(`❌ Failed to connect to ${targetUsername}: ${data.message}`, 'error');
+                    logActivity(`Failed to pair with ${username}: ${data.message}`, 'error');
                 }
             } catch (error) {
-                addToTransferLog(`❌ Network error connecting to ${targetUsername}`, 'error');
+                logActivity(`Network error pairing with ${username}`, 'error');
             }
         }
 
         async function sendFiles() {
-            const targetUserSelect = document.getElementById('targetUserSelect');
-            const targetUser = targetUserSelect.value;
-            const fileInput = document.getElementById('fileInput');
+            if (selectedFiles.length === 0) {
+                logActivity('No files selected', 'error');
+                return;
+            }
             
-            if (!targetUser) {
-                alert('Please select a user from the dropdown');
+            if (connectedPeers.length === 0) {
+                logActivity('No peers available to send files to', 'error');
                 return;
             }
-
-            if (!fileInput.files.length) {
-                alert('Please select files to send');
-                return;
-            }
-
-            // Upload files first, then get their server paths
-            const formData = new FormData();
-            Array.from(fileInput.files).forEach(file => {
-                formData.append('files', file);
-            });
-
-            // First upload files to server
-            const uploadResponse = await fetch('/upload-files', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!uploadResponse.ok) {
-                alert('Failed to upload files');
-                return;
-            }
-
-            const uploadData = await uploadResponse.json();
-            const filePaths = uploadData.file_paths;
-
+            
+            // For simplicity, send to the first available peer
+            // In a full implementation, you'd show a peer selection dialog
+            const targetPeer = connectedPeers[0];
+            
+            const progressDiv = document.getElementById('transferProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressPercent = document.getElementById('progressPercent');
+            
+            progressDiv.classList.remove('hidden');
+            progressText.textContent = 'Uploading files...';
+            progressFill.style.width = '25%';
+            progressPercent.textContent = '25%';
+            
             try {
-                const response = await fetch('/send-files', {
+                // Upload files first
+                const formData = new FormData();
+                selectedFiles.forEach(file => {
+                    formData.append('files', file);
+                });
+                
+                const uploadResponse = await fetch('/upload-files', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    body: formData
+                });
+                
+                progressFill.style.width = '50%';
+                progressPercent.textContent = '50%';
+                progressText.textContent = 'Processing files...';
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload files');
+                }
+                
+                const uploadData = await uploadResponse.json();
+                
+                progressFill.style.width = '75%';
+                progressPercent.textContent = '75%';
+                progressText.textContent = 'Sending to peer...';
+                
+                // Send files to peer
+                const sendResponse = await fetch('/send-files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        target_username: targetUser,
-                        file_paths: filePaths
+                        target_username: targetPeer,
+                        file_paths: uploadData.file_paths
                     })
                 });
+                
+                const sendData = await sendResponse.json();
+                
+                progressFill.style.width = '100%';
+                progressPercent.textContent = '100%';
+                progressText.textContent = 'Transfer complete!';
+                
+                if (sendData.success) {
+                    logActivity(`Successfully sent ${selectedFiles.length} file(s) to ${targetPeer}`, 'success');
+                    
+                    // Clear selection
+                    selectedFiles = [];
+                    document.getElementById('fileInput').value = '';
+                    handleFileSelection(document.getElementById('fileInput'));
+                    
+                    setTimeout(() => {
+                        progressDiv.classList.add('hidden');
+                        progressFill.style.width = '0%';
+                    }, 2000);
+                } else {
+                    throw new Error(sendData.message || 'Transfer failed');
+                }
+                
+            } catch (error) {
+                logActivity(`File transfer failed: ${error.message}`, 'error');
+                progressDiv.classList.add('hidden');
+            }
+        }
 
+        async function loadHistory() {
+            try {
+                const response = await fetch('/received-files');
+                const data = await response.json();
+                
+                const historyList = document.getElementById('historyList');
+                
+                if (data.success && data.files && data.files.length > 0) {
+                    historyList.innerHTML = '';
+                    
+                    data.files.forEach(file => {
+                        const historyItem = document.createElement('div');
+                        historyItem.className = 'history-item';
+                        historyItem.innerHTML = `
+                            <div class="history-file-name">${file.filename}</div>
+                            <div class="history-details">
+                                <span>${formatFileSize(file.filesize)} • ${file.sender_ip}</span>
+                                <span>${file.timestamp}</span>
+                            </div>
+                        `;
+                        historyList.appendChild(historyItem);
+                    });
+                } else {
+                    historyList.innerHTML = `
+                        <div style="padding: 2rem; text-align: center; color: #64748b;">
+                            <div style="font-size: 2rem; margin-bottom: 1rem;">📂</div>
+                            <p>No received files yet</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                logActivity('Error loading history', 'error');
+            }
+        }
+
+        function toggleHistory() {
+            const historyContent = document.getElementById('historyContent');
+            const historyArrow = document.getElementById('historyArrow');
+            
+            if (historyContent.classList.contains('hidden')) {
+                historyContent.classList.remove('hidden');
+                historyArrow.textContent = '▲';
+                loadHistory();
+            } else {
+                historyContent.classList.add('hidden');
+                historyArrow.textContent = '▼';
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        async function saveSettings() {
+            const newUsername = document.getElementById('newUsername').value.trim();
+            
+            if (!newUsername) {
+                logActivity('Username cannot be empty', 'error');
+                return;
+            }
+            
+            if (newUsername === currentUsername) {
+                closeSettings();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/update-username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: newUsername })
+                });
+                
                 const data = await response.json();
                 
                 if (data.success) {
-                    addToTransferLog(`📤 Files sent to ${targetUser}`, 'success');
-                    if (data.details) {
-                        data.details.forEach(detail => {
-                            addToTransferLog(`  ${detail.file}: ${detail.success ? '✅' : '❌'} ${detail.message}`, detail.success ? 'success' : 'error');
-                        });
-                    }
+                    currentUsername = newUsername;
+                    document.getElementById('currentUser').textContent = currentUsername;
+                    logActivity('Username updated successfully', 'success');
+                    closeSettings();
                 } else {
-                    addToTransferLog(`❌ Failed to send files to ${targetUser}: ${data.message}`, 'error');
+                    logActivity('Failed to update username: ' + data.message, 'error');
                 }
             } catch (error) {
-                addToTransferLog(`❌ Network error sending files`, 'error');
+                logActivity('Network error updating username', 'error');
             }
-
-            // Clear form
-            targetUserSelect.value = '';
-            fileInput.value = '';
         }
 
-        function updateConnectionStatus(message, type) {
-            const statusDiv = document.getElementById('connectionStatus');
-            statusDiv.textContent = message;
-            statusDiv.className = `status-indicator ${type}`;
-        }
-
-        function updateConnectedUsers() {
-            // This would typically fetch from an endpoint
-            // For now, we'll just update the display
-            const connectedDiv = document.getElementById('connectedUsersList');
-            connectedDiv.innerHTML = '<p>Connected users will appear here</p>';
-        }
-
-        function addToTransferLog(message, type) {
-            const logDiv = document.getElementById('transferLog');
+        function logActivity(message, type = 'info') {
+            const log = document.getElementById('activityLog');
             const timestamp = new Date().toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry ${type}`;
-            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
-            logDiv.appendChild(logEntry);
-            logDiv.scrollTop = logDiv.scrollHeight;
+            const entry = document.createElement('div');
+            
+            const colors = {
+                info: '#64748b',
+                success: '#22c55e',
+                error: '#ef4444',
+                warning: '#f59e0b'
+            };
+            
+            entry.style.color = colors[type] || colors.info;
+            entry.style.marginBottom = '0.5rem';
+            entry.innerHTML = `<span style="color: #94a3b8;">[${timestamp}]</span> ${message}`;
+            
+            // Remove empty state if it exists
+            if (log.children.length === 1 && log.firstElementChild.textContent.includes('Activity will appear here')) {
+                log.innerHTML = '';
+            }
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            
+            // Keep only last 50 entries
+            while (log.children.length > 50) {
+                log.removeChild(log.firstChild);
+            }
         }
 
         async function logout() {
