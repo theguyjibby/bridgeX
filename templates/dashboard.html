@@ -215,9 +215,25 @@
                 return;
             }
 
-            // In a real implementation, you'd upload files to server first
-            // For this demo, we'll simulate with file paths
-            const filePaths = Array.from(fileInput.files).map(file => file.name);
+            // Upload files first, then get their server paths
+            const formData = new FormData();
+            Array.from(fileInput.files).forEach(file => {
+                formData.append('files', file);
+            });
+
+            // First upload files to server
+            const uploadResponse = await fetch('/upload-files', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                alert('Failed to upload files');
+                return;
+            }
+
+            const uploadData = await uploadResponse.json();
+            const filePaths = uploadData.file_paths;
 
             try {
                 const response = await fetch('/send-files', {

@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, redirect, url_for, render_template, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, logout_user, login_required, current_user
@@ -181,6 +182,34 @@ def connect_route():
 
 
 
+
+@app.route('/upload-files', methods=['POST'])
+@login_required
+def upload_files():
+    try:
+        if 'files' not in request.files:
+            return jsonify({'success': False, 'message': 'No files uploaded'}), 400
+        
+        files = request.files.getlist('files')
+        if not files:
+            return jsonify({'success': False, 'message': 'No files selected'}), 400
+        
+        # Create upload directory
+        upload_dir = os.path.expanduser("~/Documents/BridgeX/Uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        file_paths = []
+        for file in files:
+            if file.filename:
+                # Save file temporarily for sending
+                file_path = os.path.join(upload_dir, file.filename)
+                file.save(file_path)
+                file_paths.append(file_path)
+        
+        return jsonify({'success': True, 'file_paths': file_paths})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route("/send-files", methods=["POST"])
 @login_required
